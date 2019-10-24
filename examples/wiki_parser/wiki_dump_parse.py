@@ -111,6 +111,7 @@ def main(nif_context: str, nif_page_structure: str, mapping_literals: str,
             'redirect_path': redirects,
             'nif_page_structure': nif_page_structure,
             'nif_text_links': nif_text_links,
+            'reading_log': os.path.join(output_path, 'raw.log')
         },
         DBpediaWikiReader.default_hparams()
     ))

@@ -82,6 +82,7 @@ class DBpediaInfoBoxReader(PackReader):
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         f_handler.setFormatter(f_format)
         self.logger.handlers = [f_handler]
+        self.logger.propagate = False
 
     def _collect(self, info_box_raw: str  # type: ignore
                  ) -> Iterator[Tuple[str, Dict[str, List[state_type]]]]:

@@ -17,7 +17,7 @@ from forte.data import DataPack
 from forte.data.datasets.wikipedia.db_utils import (
     NIFParser, NIFBufferedContextReader, get_resource_attribute,
     get_resource_name, get_resource_fragment,
-    print_progress)
+    print_progress, print_notice)
 from forte.data.ontology import Entry
 from forte.data.readers import PackReader
 from ft.onto.wikipedia import (WikiPage, WikiSection, WikiParagraph, WikiTitle,
@@ -89,6 +89,7 @@ class DBpediaWikiReader(PackReader):
         self.struct_reader = None
         self.link_reader = None
         self.redirects: Dict[str, str] = {}
+        self.logger = logging.getLogger(__name__)
 
     def initialize(self, resource: Resources, configs: HParams):
         self.redirects = resource.get('redirects')
@@ -100,6 +101,14 @@ class DBpediaWikiReader(PackReader):
             configs.nif_page_structure)
         self.link_reader = NIFBufferedContextReader(configs.nif_text_links)
 
+        # Set up logging.
+        f_handler = logging.FileHandler(configs.reading_log)
+        f_format = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        f_handler.setFormatter(f_format)
+        self.logger.handlers = [f_handler]
+        self.logger.propagate = False
+
     def define_output_info(self) -> Dict[Type[Entry], Union[List, Dict]]:
         pass
 
@@ -108,6 +117,8 @@ class DBpediaWikiReader(PackReader):
                                      Dict[str, List[state_type]]]]:
         str_data: Dict[str, str] = {}
         node_data: Dict[str, List[state_type]] = {}
+
+        self.logger.info("Start reading from [%s]", nif_context)
 
         for context_statements in NIFParser(nif_context):
             for s, v, o, c in context_statements:
@@ -148,12 +159,16 @@ class DBpediaWikiReader(PackReader):
         if len(node_data['struct']) > 0:
             add_struct(pack, node_data['struct'])
         else:
-            logging.warning('Structure info for %s not found.', doc_name)
+            msg = f'Structure info for {doc_name} not found.'
+            print_notice(msg)
+            self.logger.warning(msg)
 
         if len(node_data['links']) > 0:
             add_anchor_links(pack, node_data['links'], self.redirects)
         else:
-            logging.warning('Links for [%s] not found.', doc_name)
+            msg = f'Links for [{doc_name}] not found.'
+            print_notice(msg)
+            self.logger.warning(msg)
 
         pack.meta.doc_id = doc_name
 
@@ -172,4 +187,5 @@ class DBpediaWikiReader(PackReader):
             'redirect_path': None,
             'nif_page_structure': None,
             'nif_text_links': None,
+            'reading_log': 'raw.log',
         }

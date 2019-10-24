@@ -177,7 +177,7 @@ class ContextGroupedNIFReader:
 
 
 class NIFBufferedContextReader:
-    def __init__(self, nif_path: str, buffer_size: int = 500):
+    def __init__(self, nif_path: str, buffer_size: int = 4000):
         self.data_name = os.path.basename(nif_path)
 
         self.__parser = ContextGroupedNIFReader(nif_path)
@@ -231,6 +231,10 @@ class NIFBufferedContextReader:
 
                 if len(self.window_statement) >= self.__buffer_size:
                     # Give up on this search.
+                    print_notice(
+                        f"Give up on search [context_] when -- "
+                        f"oldest={oldest_index} , entry=self.__entry_index, ",
+                    )
                     return []
 
         return []
