@@ -189,6 +189,8 @@ class NIFBufferedContextReader:
         self.__buffer_size = buffer_size
         self.__entry_index = 0
 
+        self.__miss_count = 0
+
     def window_info(self):
         logging.info('The buffer size for data [%s] is %s',
                      self.data_name, len(self.window_statement))
@@ -238,8 +240,12 @@ class NIFBufferedContextReader:
                         f"Give up on search [{context_}] when -- "
                         f"oldest={oldest_index} , entry={self.__entry_index}",
                     )
-                    import pdb
-                    pdb.set_trace()
+                    self.__miss_count += 1
+
+                    if self.__miss_count == 30:
+                        import pdb
+                        pdb.set_trace()
+
                     return []
 
         return []
