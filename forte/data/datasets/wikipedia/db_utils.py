@@ -80,7 +80,7 @@ def print_notice(msg: str):
     Returns:
 
     """
-    print(f'-- {msg}\n')
+    print(f'-- {msg}')
 
 
 class NIFParser:
@@ -102,7 +102,15 @@ class NIFParser:
         return self
 
     def __next__(self):
-        return self.read()
+        while True:
+            line = next(self.__nif)
+            statements = list(self.parse_graph(
+                line.decode('utf-8'),
+                tuple_format=self.format
+            ))
+
+            if len(statements) > 0:
+                return list(statements)
 
     def parse_graph(self, data: str, tuple_format: str) -> List:
         if self.format == 'nquads':
@@ -116,17 +124,6 @@ class NIFParser:
             return list(g_.quads())
         else:
             return list(g_)
-
-    def read(self):
-        while True:
-            line = next(self.__nif)
-            statements = list(self.parse_graph(
-                line.decode('utf-8'),
-                tuple_format=self.format
-            ))
-
-            if len(statements) > 0:
-                return list(statements)
 
     def close(self):
         self.__nif.close()
@@ -157,34 +154,32 @@ class ContextGroupedNIFReader:
         res_states: List = []
 
         while True:
-            try:
-                # import pdb
-                # pdb.set_trace()
-                for statements in self.__parser:
-                    for s, v, o, c in statements:
-                        c_ = context_base(c)
+            for statements in self.__parser:
+                for s, v, o, c in statements:
+                    c_ = context_base(c)
+                    if c_ != self.__last_c and self.__last_c != '':
+                        res_c = self.__last_c
+                        res_states.extend(self.__statements)
+                        self.__statements.clear()
 
-                        if c_ != self.__last_c and self.__last_c != '':
-                            res_c = self.__last_c
-                            res_states.extend(self.__statements)
-                            self.__statements.clear()
+                    self.__statements.append((s, v, o))
+                    self.__last_c = c_
 
-                        self.__statements.append((s, v, o))
-                        self.__last_c = c_
-
-                        if not res_c == '':
-                            return res_c, res_states
-            except StopIteration:
-                break
+                    if not res_c == '':
+                        return res_c, res_states
+            # This break will be reached when the __parser raises StopIteration.
+            break
 
         if len(self.__statements) > 0:
-            return self.__last_c, self.__statements
+            res_states.extend(self.__statements)
+            self.__statements.clear()
+            return self.__last_c, res_states
 
         raise StopIteration
 
 
 class NIFBufferedContextReader:
-    def __init__(self, nif_path: str, buffer_size: int = 4000):
+    def __init__(self, nif_path: str, buffer_size: int = 100):
         self.data_name = os.path.basename(nif_path)
 
         self.__parser = ContextGroupedNIFReader(nif_path)
@@ -219,11 +214,10 @@ class NIFBufferedContextReader:
         if context_ in self.window_statement:
             return self.window_statement.pop(context_)[0]
 
-        print('searching ', context_)
         for c_, statements in self.__parser:
             self.__entry_index += 1
+
             if c_ == context_:
-                print('found at ', self.__entry_index)
                 return statements
             else:
                 self.window_statement[c_] = (statements, self.__entry_index)
@@ -244,6 +238,8 @@ class NIFBufferedContextReader:
                         f"Give up on search [{context_}] when -- "
                         f"oldest={oldest_index} , entry={self.__entry_index}",
                     )
+                    import pdb
+                    pdb.set_trace()
                     return []
 
         return []
