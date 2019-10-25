@@ -80,7 +80,7 @@ def print_notice(msg: str):
     Returns:
 
     """
-    print(f'\n -- {msg}')
+    print(f'-- {msg}\n')
 
 
 class NIFParser:
@@ -88,7 +88,7 @@ class NIFParser:
         if nif_path.endswith(".bz2"):
             self.__nif = bz2.BZ2File(nif_path)
         else:
-            self.__nif = open(nif_path)
+            self.__nif = open(nif_path, 'rb')
 
         self.format = tuple_format
 
@@ -143,8 +143,11 @@ class ContextGroupedNIFReader:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def close(self):
         self.__parser.close()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
     def __iter__(self):
         return self
@@ -155,6 +158,8 @@ class ContextGroupedNIFReader:
 
         while True:
             try:
+                # import pdb
+                # pdb.set_trace()
                 for statements in self.__parser:
                     for s, v, o, c in statements:
                         c_ = context_base(c)
@@ -174,6 +179,8 @@ class ContextGroupedNIFReader:
 
         if len(self.__statements) > 0:
             return self.__last_c, self.__statements
+
+        raise StopIteration
 
 
 class NIFBufferedContextReader:
@@ -212,9 +219,11 @@ class NIFBufferedContextReader:
         if context_ in self.window_statement:
             return self.window_statement.pop(context_)[0]
 
+        print('searching ', context_)
         for c_, statements in self.__parser:
             self.__entry_index += 1
             if c_ == context_:
+                print('found at ', self.__entry_index)
                 return statements
             else:
                 self.window_statement[c_] = (statements, self.__entry_index)
@@ -232,9 +241,12 @@ class NIFBufferedContextReader:
                 if len(self.window_statement) >= self.__buffer_size:
                     # Give up on this search.
                     print_notice(
-                        f"Give up on search [context_] when -- "
-                        f"oldest={oldest_index} , entry=self.__entry_index, ",
+                        f"Give up on search [{context_}] when -- "
+                        f"oldest={oldest_index} , entry={self.__entry_index}",
                     )
                     return []
 
         return []
+
+    def close(self):
+        self.__parser.close()
